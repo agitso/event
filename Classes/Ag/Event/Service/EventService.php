@@ -40,6 +40,7 @@ class EventService {
 	 */
 	public function processEvents() {
 		$events = $this->storedEventRepository->getPersistedEvents();
+		$this->storedEventRepository->resetPersistedEvents();
 
 		$this->systemLogger->log('Processing ' . count($events) . ' events.', LOG_DEBUG);
 
@@ -49,8 +50,6 @@ class EventService {
 
 			$this->dispatcher->dispatch(get_class($this), get_class($event), array($event));
 		}
-
-		$this->storedEventRepository->resetPersistedEvents();
 	}
 
 
