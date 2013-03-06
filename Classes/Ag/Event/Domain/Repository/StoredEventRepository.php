@@ -8,34 +8,41 @@ use TYPO3\Flow\Annotations as Flow;
  */
 class StoredEventRepository extends \TYPO3\Flow\Persistence\Repository {
 
-
 	/**
-	 * @var array
+	 * @param string $eventId
+	 * @return \Ag\Event\Domain\Model\StoredEvent
 	 */
-	protected $persistedEvents = array();
-
-	/**
-	 * @param \Ag\Event\Domain\Model\StoredEvent $storedEvent
-	 * @return void
-	 */
-	public function add($storedEvent) {
-		parent::add($storedEvent);
-
-		$this->persistedEvents[] = $storedEvent;
+	public function findByIdentifier($eventId) {
+		return parent::findByIdentifier($eventId);
 	}
 
 	/**
-	 * @return void
+	 * @return \Ag\Event\Domain\Model\StoredEvent
 	 */
-	public function resetPersistedEvents() {
-		$this->persistedEvents = array();
+	public function getLatestEvent() {
+		$query = $this->createQuery();
+		return $query
+			->setOrderings(array('eventId'=>\TYPO3\Flow\Persistence\QueryInterface::ORDER_DESCENDING))
+			->setLimit(1)
+			->execute()
+			->getFirst();
 	}
 
 	/**
-	 * @return array
+	 * @param \Ag\Event\Domain\Model\StoredEvent $event
+	 * @return \Ag\Event\Domain\Model\StoredEvent
 	 */
-	public function getPersistedEvents() {
-		return $this->persistedEvents;
+	public function findNext($event) {
+		$eventId = $event !== NULL ? $event->getEventId() : '0';
+
+		$query = $this->createQuery();
+		return $query
+			->matching($query->greaterThan('eventId',$eventId))
+			->setOrderings(array('eventId'=>\TYPO3\Flow\Persistence\QueryInterface::ORDER_ASCENDING))
+			->setLimit(1)
+			->execute()
+			->getFirst();
 	}
+
 }
 ?>

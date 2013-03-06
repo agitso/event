@@ -6,11 +6,12 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * @Flow\Entity
+ * @ORM\HasLifecycleCallbacks
  */
 class StoredEvent {
 
 	/**
-	 * @var int
+	 * @var string
 	 * @ORM\Id
 	 * @ORM\GeneratedValue
 	 * @ORM\Column(type="bigint", options={"unsigned"=true})
@@ -32,8 +33,15 @@ class StoredEvent {
 	 * @param \Ag\Event\Domain\Model\DomainEvent $event
 	 */
 	public function __construct($event) {
-		$this->occuredOn = new \DateTime();
+		$this->occuredOn = clone $event->getOccuredOn();
 		$this->event = serialize($event);
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getEventId() {
+		return $this->eventId;
 	}
 
 	/**
@@ -41,6 +49,21 @@ class StoredEvent {
 	 */
 	public function getEvent() {
 		return unserialize($this->event);
+	}
+
+	/**
+	 * @ORM\PostPersist
+	 */
+	public function postPersist() {
+		$this->emitEventPersisted($this);
+	}
+
+	/**
+	 * @param \Ag\Event\Domain\Model\StoredEvent $event
+	 * @Flow\Signal
+	 */
+	public function emitEventPersisted($event) {
+
 	}
 }
 ?>

@@ -3,16 +3,24 @@ namespace Ag\Event\Service;
 
 use TYPO3\Flow\Annotations as Flow;
 
+require_once(FLOW_PATH_PACKAGES . '/Libraries/pda/pheanstalk/pheanstalk_init.php');
+
 /**
  * @Flow\Scope("singleton")
  */
 class EventService {
 
 	/**
-	 * @var \TYPO3\Flow\Log\SystemLoggerInterface
-	 * @Flow\Inject
+	 * @var array
 	 */
-	protected $systemLogger;
+	protected $settings;
+
+	/**
+	 * @param array $settings
+	 */
+	public function injectSettings(array $settings) {
+		$this->settings = $settings;
+	}
 
 	/**
 	 * @var \Ag\Event\Domain\Repository\StoredEventRepository
@@ -27,31 +35,50 @@ class EventService {
 	protected $dispatcher;
 
 	/**
+	 * @var \TYPO3\Flow\Log\SystemLoggerInterface
+	 * @Flow\Inject
+	 */
+	protected $systemLogger;
+
+	/**
 	 * @param \Ag\Event\Domain\Model\DomainEvent $event
 	 */
 	public function publish($event) {
 		$event = new \Ag\Event\Domain\Model\StoredEvent($event);
 		$this->storedEventRepository->add($event);
-		$this->systemLogger->log('Published ' . get_class($event), LOG_DEBUG, serialize($event));
 	}
 
 	/**
-	 * @return void
+	 * @param \Ag\Event\Domain\Model\StoredEvent $event
 	 */
-	public function processEvents() {
-		$events = $this->storedEventRepository->getPersistedEvents();
-		$this->storedEventRepository->resetPersistedEvents();
-
-		$this->systemLogger->log('Processing ' . count($events) . ' events.', LOG_DEBUG);
-
-		foreach($events as $event) {
-			$event = $event->getEvent();
-			$this->systemLogger->log('Processing ' . get_class($event), LOG_DEBUG, serialize($event));
-
-			$this->dispatcher->dispatch(get_class($this), get_class($event), array($event));
+	public function _publish($event) {
+		foreach ($this->settings['listeners'] as $key => $sync) {
+			if ($sync === 'async') {
+				$this->_asyncPublish($event, $key);
+			} else {
+				$this->_syncPublish($event, $key);
+			}
 		}
 	}
 
+	/**
+	 * @param \Ag\Event\Domain\Model\StoredEvent $event
+	 * @param string $key
+	 */
+	public function _syncPublish($event, $key) {
+		$this->systemLogger->log('Syncronously publishing event #' . $event->getEventId() . ' by key ' . $key, LOG_DEBUG);
+		$this->dispatcher->dispatch('Ag\Event\Service\EventService', $key, array($event->getEvent()));
+	}
 
+	/**
+	 * @param \Ag\Event\Domain\Model\StoredEvent $event
+	 * @param string $key
+	 */
+	protected function _asyncPublish($event, $key) {
+		$this->systemLogger->log('Asyncronously publishing event #' . $event->getEventId() . ' to tube ' . $key, LOG_DEBUG);
+		$pheanstalk = new \Pheanstalk_Pheanstalk('127.0.0.1');
+		$pheanstalk->useTube($key)->put(serialize($event));
+	}
 }
+
 ?>

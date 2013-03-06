@@ -15,9 +15,8 @@ abstract class DomainEvent {
 	/**
 	 * @return \DateTime
 	 */
-	public function	occuredOn() {
+	public function getOccuredOn() {
 		return $this->occuredOn;
 	}
 }
-
 ?>
