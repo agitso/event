@@ -11,6 +11,20 @@ require_once(FLOW_PATH_PACKAGES . '/Libraries/pda/pheanstalk/pheanstalk_init.php
 class EventService {
 
 	/**
+	 * @var \Doctrine\Common\Persistence\ObjectManager
+	 */
+	protected $entityManager;
+
+	/**
+	 * @param \Doctrine\Common\Persistence\ObjectManager $entityManager
+	 * @return void
+	 */
+	public function injectEntityManager(\Doctrine\Common\Persistence\ObjectManager $entityManager) {
+		$this->entityManager = $entityManager;
+		$this->entityManager->getEventManager()->addEventListener(array(\Doctrine\ORM\Events::postFlush), $this);
+	}
+
+	/**
 	 * @var array
 	 */
 	protected $settings;
@@ -21,6 +35,17 @@ class EventService {
 	public function injectSettings(array $settings) {
 		$this->settings = $settings;
 	}
+
+	/**
+	 * @var array
+	 */
+	protected $events = array();
+
+	/**
+	 * @var \TYPO3\Flow\Persistence\PersistenceManagerInterface
+	 * @Flow\Inject
+	 */
+	protected $persistenceManager;
 
 	/**
 	 * @var \Ag\Event\Domain\Repository\StoredEventRepository
@@ -44,22 +69,33 @@ class EventService {
 	 * @param \Ag\Event\Domain\Model\DomainEvent $event
 	 */
 	public function publish($event) {
+		$this->systemLogger->log('Persist event ' . get_class($event), LOG_DEBUG);
 		$event = new \Ag\Event\Domain\Model\StoredEvent($event);
 		$this->storedEventRepository->add($event);
+		$this->events[] = $event;
 	}
 
 	/**
-	 * @param \Ag\Event\Domain\Model\StoredEvent $event
+	 * @param \Doctrine\ORM\Event\PostFlushEventArgs $eventArgs
+	 * @return void
 	 */
-	public function _publish($event) {
-		foreach ($this->settings['listeners'] as $key => $sync) {
-			if ($sync === 'async') {
-				$this->_asyncPublish($event, $key);
-			} else {
-				$this->_syncPublish($event, $key);
+	public function postFlush(\Doctrine\ORM\Event\PostFlushEventArgs $eventArgs) {
+		$this->systemLogger->log('POST FLUSH: Processing ' . count($this->events) . ' events', LOG_DEBUG);
+
+		$events = $this->events;
+		$this->events = array();
+
+		foreach ($events as $event) {
+			foreach ($this->settings['listeners'] as $key => $sync) {
+				if ($sync === 'async') {
+					$this->_asyncPublish($event, $key);
+				} else {
+					$this->_syncPublish($event, $key);
+				}
 			}
 		}
 	}
+
 
 	/**
 	 * @param \Ag\Event\Domain\Model\StoredEvent $event

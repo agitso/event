@@ -6,7 +6,6 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * @Flow\Entity
- * @ORM\HasLifecycleCallbacks
  */
 class StoredEvent {
 
@@ -49,21 +48,6 @@ class StoredEvent {
 	 */
 	public function getEvent() {
 		return unserialize($this->event);
-	}
-
-	/**
-	 * @ORM\PostPersist
-	 */
-	public function postPersist() {
-		$this->emitEventPersisted($this);
-	}
-
-	/**
-	 * @param \Ag\Event\Domain\Model\StoredEvent $event
-	 * @Flow\Signal
-	 */
-	public function emitEventPersisted($event) {
-
 	}
 }
 ?>
