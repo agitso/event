@@ -66,10 +66,16 @@ class EventService {
 	protected $systemLogger;
 
 	/**
+	 * @var \TYPO3\Flow\Object\ObjectManagerInterface
+	 * @Flow\Inject
+	 */
+	protected $objectManager;
+
+	/**
 	 * @param \Ag\Event\Domain\Model\DomainEvent $event
 	 */
 	public function publish($event) {
-		$this->systemLogger->log('Persist event ' . get_class($event), LOG_DEBUG);
+		$this->systemLogger->log('Publish event ' . get_class($event), LOG_DEBUG);
 		$event = new \Ag\Event\Domain\Model\StoredEvent($event);
 		$this->storedEventRepository->add($event);
 		$this->events[] = $event;
@@ -80,30 +86,44 @@ class EventService {
 	 * @return void
 	 */
 	public function postFlush(\Doctrine\ORM\Event\PostFlushEventArgs $eventArgs) {
-		$this->systemLogger->log('POST FLUSH: Processing ' . count($this->events) . ' events', LOG_DEBUG);
+		$this->systemLogger->log('Processing ' . count($this->events) . ' events', LOG_DEBUG);
 
 		$events = $this->events;
 		$this->events = array();
 
 		foreach ($events as $event) {
-			foreach ($this->settings['listeners'] as $key => $sync) {
-				if ($sync === 'async') {
-					$this->_asyncPublish($event, $key);
-				} else {
-					$this->_syncPublish($event, $key);
-				}
+			foreach ($this->getAsyncEventHandlers() as $eventHandler) {
+				$this->_asyncPublish($event, $eventHandler);
+			}
+
+			foreach ($this->getSyncEventHandlers() as $eventHandler) {
+				$this->_syncPublish($event, $eventHandler);
 			}
 		}
 	}
 
-
 	/**
 	 * @param \Ag\Event\Domain\Model\StoredEvent $event
-	 * @param string $key
+	 * @param string $eventHandler
 	 */
-	public function _syncPublish($event, $key) {
-		$this->systemLogger->log('Syncronously publishing event #' . $event->getEventId() . ' by key ' . $key, LOG_DEBUG);
-		$this->dispatcher->dispatch('Ag\Event\Service\EventService', $key, array($event->getEvent()));
+	public function _syncPublish($event, $eventHandler) {
+		$this->systemLogger->log('Syncronously publishing event #' . $event->getEventId() . ' to ' . $eventHandler, LOG_DEBUG);
+
+		$eventHandlerInstance = $this->objectManager->get($eventHandler);
+
+		if(!$eventHandlerInstance instanceof \Ag\Event\EventHandler\EventHandler) {
+			$this->systemLogger->log('Event handler ' . $eventHandler . ' does not implement the event handler interface.', LOG_CRIT);
+			return;
+		}
+
+		try {
+			$eventHandlerInstance->handle($event->getEvent());
+		} catch(\Exception $e) {
+			$this->systemLogger->log('Event #' . $event->getEventId() . 'could not be handled.', LOG_CRIT, array(
+				'event'=>serialize($event->getEvent()),
+				'exception'=>$e->getMessage()
+			));
+		}
 	}
 
 	/**
@@ -111,9 +131,45 @@ class EventService {
 	 * @param string $key
 	 */
 	protected function _asyncPublish($event, $key) {
+		$key = str_replace('\\', '_', $key);
 		$this->systemLogger->log('Asyncronously publishing event #' . $event->getEventId() . ' to tube ' . $key, LOG_DEBUG);
 		$pheanstalk = new \Pheanstalk_Pheanstalk('127.0.0.1');
 		$pheanstalk->useTube($key)->put(serialize($event));
+	}
+
+	/**
+	 * @return array
+	 */
+	protected function getSyncEventHandlers() {
+		$eventHandlers = $this->getEventHandlers();
+		if (array_key_exists('sync', $eventHandlers) && is_array($eventHandlers['sync'])) {
+			return $eventHandlers['sync'];
+		} else {
+			return array();
+		}
+	}
+
+	/**
+	 * @return array
+	 */
+	protected function getAsyncEventHandlers() {
+		$eventHandlers = $this->getEventHandlers();
+		if (array_key_exists('async', $eventHandlers) && is_array($eventHandlers['async'])) {
+			return $eventHandlers['async'];
+		} else {
+			return array();
+		}
+	}
+
+	/**
+	 * @return array
+	 */
+	protected function getEventHandlers() {
+		if (array_key_exists('eventHandlers', $this->settings) && is_array($this->settings['eventHandlers'])) {
+			return $this->settings['eventHandlers'];
+		} else {
+			return array();
+		}
 	}
 }
 

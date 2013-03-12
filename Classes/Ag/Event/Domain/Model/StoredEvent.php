@@ -32,7 +32,7 @@ class StoredEvent {
 	 * @param \Ag\Event\Domain\Model\DomainEvent $event
 	 */
 	public function __construct($event) {
-		$this->occuredOn = clone $event->getOccuredOn();
+		$this->occuredOn = clone $event->occuredOn;
 		$this->event = serialize($event);
 	}
 
