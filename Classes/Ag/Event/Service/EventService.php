@@ -71,11 +71,15 @@ class EventService {
 	 */
 	protected $objectManager;
 
+	protected $logging = FALSE;
+
 	/**
 	 * @param \Ag\Event\Domain\Model\DomainEvent $event
 	 */
 	public function publish($event) {
-		$this->systemLogger->log('Publish event ' . get_class($event), LOG_DEBUG);
+		if($this->logging) {
+			$this->systemLogger->log('Publish event ' . get_class($event), LOG_DEBUG);
+		}
 		$event = new \Ag\Event\Domain\Model\StoredEvent($event);
 		$this->storedEventRepository->add($event);
 		$this->events[] = $event;
@@ -86,8 +90,6 @@ class EventService {
 	 * @return void
 	 */
 	public function postFlush(\Doctrine\ORM\Event\PostFlushEventArgs $eventArgs) {
-		$this->systemLogger->log('Processing ' . count($this->events) . ' events', LOG_DEBUG);
-
 		$events = $this->events;
 		$this->events = array();
 
@@ -107,7 +109,9 @@ class EventService {
 	 * @param string $eventHandler
 	 */
 	public function _syncPublish($event, $eventHandler) {
-		$this->systemLogger->log('Syncronously publishing event #' . $event->getEventId() . ' to ' . $eventHandler, LOG_DEBUG);
+		if($this->logging) {
+			$this->systemLogger->log('Syncronously publishing event #' . $event->getEventId() . ' to ' . $eventHandler, LOG_DEBUG);
+		}
 
 		$eventHandlerInstance = $this->objectManager->get($eventHandler);
 
@@ -132,7 +136,9 @@ class EventService {
 	 */
 	protected function _asyncPublish($event, $key) {
 		$key = str_replace('\\', '_', $key);
-		$this->systemLogger->log('Asyncronously publishing event #' . $event->getEventId() . ' to tube ' . $key, LOG_DEBUG);
+		if($this->logging) {
+			$this->systemLogger->log('Asyncronously publishing event #' . $event->getEventId() . ' to tube ' . $key, LOG_DEBUG);
+		}
 		$pheanstalk = new \Pheanstalk_Pheanstalk('127.0.0.1');
 		$pheanstalk->useTube($key)->put(serialize($event));
 	}
