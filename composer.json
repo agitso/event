@@ -4,7 +4,7 @@
     "description": "",
     "version": "",
     "require": {
-        "typo3/flow": "*",
+		"typo3/flow": "2.0.*@beta",
 		"pda/pheanstalk":"dev-master"
     },
     "autoload": {
