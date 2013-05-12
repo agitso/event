@@ -36,7 +36,7 @@ class EventCommandController extends \TYPO3\Flow\Cli\CommandController {
 				  ->ignore('default')
 				  ->reserve();
 
-			$this->eventService->_syncPublish(unserialize($job->getData()), $key);
+			$this->eventService->_syncPublish(unserialize($job->getData()), str_replace('_', '\\', $key));
 
 			$pheanstalk->delete($job);
 		}
