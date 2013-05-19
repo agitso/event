@@ -21,32 +21,23 @@ class StoreAndPublishTest extends \TYPO3\Flow\Tests\FunctionalTestCase {
 	protected $storedEventRepository;
 
 	/**
-	 * @var \Ag\Event\Tests\Functional\EventService\EventListener
+	 * @var \Ag\Event\EventHandler\StubEventHandler
 	 */
-	protected $eventListener;
+	protected $stubEventHandler;
+
 
 	public function setUp() {
 		parent::setUp();
 
-
-		$this->dispatcher = $this->objectManager->get('TYPO3\Flow\SignalSlot\Dispatcher');
-		$this->dispatcher->connect(
-			'Ag\Event\Service\EventService', 'test',
-			'Ag\Event\Tests\Functional\EventService\EventListener', 'listen'
-		);
-
 		$this->eventService = $this->objectManager->get('Ag\Event\Service\EventService');
-		$this->eventService->injectSettings(array('listeners'=>array('test'=>'sync')));
-
-		$this->eventListener = $this->objectManager->get('Ag\Event\Tests\Functional\EventService\EventListener');
-
+		$this->stubEventHandler = $this->objectManager->get('Ag\Event\EventHandler\StubEventHandler');
 		$this->storedEventRepository = $this->objectManager->get('Ag\Event\Domain\Repository\StoredEventRepository');
 	}
 
 	/**
 	 * @test
 	 */
-	public function canPersistEvent() {
+	public function test() {
 		$event = new TestEvent('Hello world #1');
 		$this->eventService->publish($event);
 
@@ -56,6 +47,12 @@ class StoreAndPublishTest extends \TYPO3\Flow\Tests\FunctionalTestCase {
 		$this->persistenceManager->persistAll();
 		$this->persistenceManager->clearState();
 
+		$this->assertCount(2, $this->stubEventHandler->events);
+		$this->assertInstanceOf('Ag\Event\Tests\Functional\EventService\TestEvent', $this->stubEventHandler->events[0]);
+		$this->assertInstanceOf('Ag\Event\Tests\Functional\EventService\TestEvent', $this->stubEventHandler->events[1]);
+		$this->assertEquals('Hello world #1', $this->stubEventHandler->events[0]->getMessage());
+		$this->assertEquals('Hello world #2', $this->stubEventHandler->events[1]->getMessage());
+
 		// Assert persistence
 		$this->assertEquals(2, $this->storedEventRepository->countAll());
 
@@ -64,16 +61,6 @@ class StoreAndPublishTest extends \TYPO3\Flow\Tests\FunctionalTestCase {
 
 		$event = $this->storedEventRepository->findByIdentifier('2');
 		$this->assertEquals('Hello world #2', $event->getEvent()->getMessage());
-
-		$this->assertEquals(2, count($this->eventListener->events));
-
-		$event = $this->eventListener->events[0];
-		$this->assertEquals('Hello world #1', $event->getMessage());
-
-		$event = $this->eventListener->events[1];
-		$this->assertEquals('Hello world #2', $event->getMessage());
 	}
-
 }
-
 ?>
