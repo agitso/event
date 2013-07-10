@@ -2,4 +2,4 @@ Ag:
   Event:
     eventHandlers:
       sync:
-        0: 'Ag\Event\EventHandler\StubEventHandler'
+        'Ag\Event\EventHandler\StubEventHandler': 'Ag\Event\EventHandler\StubEventHandler'
