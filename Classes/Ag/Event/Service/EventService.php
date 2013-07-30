@@ -11,20 +11,6 @@ require_once(FLOW_PATH_PACKAGES . '/Libraries/pda/pheanstalk/pheanstalk_init.php
 class EventService {
 
 	/**
-	 * @var \Doctrine\Common\Persistence\ObjectManager
-	 */
-	protected $entityManager;
-
-	/**
-	 * @param \Doctrine\Common\Persistence\ObjectManager $entityManager
-	 * @return void
-	 */
-	public function injectEntityManager(\Doctrine\Common\Persistence\ObjectManager $entityManager) {
-		$this->entityManager = $entityManager;
-		$this->entityManager->getEventManager()->addEventListener(array(\Doctrine\ORM\Events::postFlush), $this);
-	}
-
-	/**
 	 * @var array
 	 */
 	protected $settings;
