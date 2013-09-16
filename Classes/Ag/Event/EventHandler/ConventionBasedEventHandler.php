@@ -44,7 +44,6 @@ abstract class ConventionBasedEventHandler implements EventHandler {
 		$eventHandlerClass = '\\'.implode('\\', $eventHandlerParts);
 
 		if(!class_exists($eventHandlerClass)) {
-			$this->systemLogger->log('EventHandler ' . $eventHandlerClass .' not found', LOG_WARNING);
 			return;
 		}
 
