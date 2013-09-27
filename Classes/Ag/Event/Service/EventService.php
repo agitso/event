@@ -125,7 +125,8 @@ class EventService {
 		} catch(\Exception $e) {
 			$this->systemLogger->log('Event #' . $event->getEventId() . 'could not be handled.', LOG_CRIT, array(
 				'event'=>serialize($event->getEvent()),
-				'exception'=>$e->getMessage()
+				'exception'=>$e->getMessage(),
+				'trace'=>$e->getTrace()
 			));
 		}
 	}
