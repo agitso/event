@@ -71,7 +71,7 @@ class EventService {
 	 */
 	protected $objectManager;
 
-	protected $logging = FALSE;
+	protected $logging = TRUE;
 
 	/**
 	 * @param \Ag\Event\Domain\Model\DomainEvent $event
@@ -137,11 +137,13 @@ class EventService {
 	 */
 	protected function _asyncPublish($event, $key) {
 		$key = str_replace('\\', '_', $key);
-		if($this->logging) {
-			$this->systemLogger->log('Asyncronously publishing event #' . $event->getEventId() . ' to tube ' . $key, LOG_DEBUG);
-		}
+
 		$pheanstalk = new \Pheanstalk_Pheanstalk('127.0.0.1');
-		$pheanstalk->useTube($key)->put(serialize($event));
+		$pheanstalk->useTube($key)->put(serialize($event), \Pheanstalk_PheanstalkInterface::DEFAULT_PRIORITY, 1);
+
+		if($this->logging) {
+			$this->systemLogger->log('Asyncronously published event #' . $event->getEventId() . ' to tube ' . $key, LOG_INFO);
+		}
 	}
 
 	/**
