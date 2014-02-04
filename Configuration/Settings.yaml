@@ -3,3 +3,10 @@ TYPO3:
     object:
       excludeClasses:
         'pda.pheanstalk' : ['.*']
+
+    persistence:
+      doctrine:
+        eventListeners:
+          -
+            events: ['postFlush']
+            listener: 'Ag\Event\Service\EventService'
