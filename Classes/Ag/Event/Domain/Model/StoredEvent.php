@@ -29,9 +29,9 @@ class StoredEvent {
 	protected $event;
 
 	/**
-	 * @param \Ag\Event\Domain\Model\DomainEvent $event
+	 * @param DomainEvent $event
 	 */
-	public function __construct($event) {
+	public function __construct(DomainEvent $event) {
 		$this->occuredOn = clone $event->occuredOn;
 		$this->event = serialize($event);
 	}
@@ -44,10 +44,10 @@ class StoredEvent {
 	}
 
 	/**
-	 * @return \Ag\Event\Domain\Model\DomainEvent
+	 * @return DomainEvent
 	 */
 	public function getEvent() {
 		return unserialize($this->event);
 	}
+
 }
-?>

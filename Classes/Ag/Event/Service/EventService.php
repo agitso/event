@@ -1,9 +1,19 @@
 <?php
 namespace Ag\Event\Service;
 
+use Ag\Event\Domain\Model\DomainEvent;
+use Ag\Event\Domain\Model\StoredEvent;
+use Ag\Event\Domain\Repository\StoredEventRepository;
+use Ag\Event\EventHandler\EventHandler;
+use Ag\Event\Exception\EventHandlingException;
+use Doctrine\ORM\Event\PostFlushEventArgs;
+use Pheanstalk\Pheanstalk;
+use Pheanstalk\PheanstalkInterface;
 use TYPO3\Flow\Annotations as Flow;
-
-require_once(FLOW_PATH_PACKAGES . '/Libraries/pda/pheanstalk/pheanstalk_init.php');
+use TYPO3\Flow\Log\SystemLoggerInterface;
+use TYPO3\Flow\Object\ObjectManagerInterface;
+use TYPO3\Flow\Persistence\PersistenceManagerInterface;
+use TYPO3\Flow\Reflection\ReflectionService;
 
 /**
  * @Flow\Scope("singleton")
@@ -11,30 +21,48 @@ require_once(FLOW_PATH_PACKAGES . '/Libraries/pda/pheanstalk/pheanstalk_init.php
 class EventService {
 
 	/**
-	 * @var \Doctrine\Common\Persistence\ObjectManager
+	 * @Flow\Inject
+	 * @var PersistenceManagerInterface
 	 */
-	protected $entityManager;
+	protected $persistenceManager;
 
 	/**
-	 * @param \Doctrine\Common\Persistence\ObjectManager $entityManager
-	 * @return void
+	 * @Flow\Inject
+	 * @var StoredEventRepository
 	 */
-	public function injectEntityManager(\Doctrine\Common\Persistence\ObjectManager $entityManager) {
-		$this->entityManager = $entityManager;
-		$this->entityManager->getEventManager()->addEventListener(array(\Doctrine\ORM\Events::postFlush), $this);
-	}
+	protected $storedEventRepository;
 
 	/**
+	 * @Flow\Inject
+	 * @var SystemLoggerInterface
+	 */
+	protected $systemLogger;
+
+	/**
+	 * @Flow\Inject
+	 * @var ObjectManagerInterface
+	 */
+	protected $objectManager;
+
+	/**
+	 * @Flow\Inject
+	 * @var ReflectionService
+	 */
+	protected $reflectionService;
+
+	/**
+	 * Note: this dependency injection is backed by Objects.yaml!
+	 *
+	 * @Flow\Inject
+	 * @var Pheanstalk
+	 */
+	protected $pheanstalk;
+
+	/**
+	 * @Flow\Inject(setting="eventHandlers")
 	 * @var array
 	 */
-	protected $settings;
-
-	/**
-	 * @param array $settings
-	 */
-	public function injectSettings(array $settings) {
-		$this->settings = $settings;
-	}
+	protected $eventHandlersConfiguration;
 
 	/**
 	 * @var array
@@ -42,144 +70,92 @@ class EventService {
 	protected $events = array();
 
 	/**
-	 * @var \TYPO3\Flow\Persistence\PersistenceManagerInterface
-	 * @Flow\Inject
+	 * @var boolean
 	 */
-	protected $persistenceManager;
-
-	/**
-	 * @var \Ag\Event\Domain\Repository\StoredEventRepository
-	 * @Flow\Inject
-	 */
-	protected $storedEventRepository;
-
-	/**
-	 * @var \TYPO3\Flow\SignalSlot\Dispatcher
-	 * @Flow\Inject
-	 */
-	protected $dispatcher;
-
-	/**
-	 * @var \TYPO3\Flow\Log\SystemLoggerInterface
-	 * @Flow\Inject
-	 */
-	protected $systemLogger;
-
-	/**
-	 * @var \TYPO3\Flow\Object\ObjectManagerInterface
-	 * @Flow\Inject
-	 */
-	protected $objectManager;
-
 	protected $logging = TRUE;
 
 	/**
-	 * @param \Ag\Event\Domain\Model\DomainEvent $event
+	 * @param DomainEvent $event
 	 */
-	public function publish($event) {
+	public function publish(DomainEvent $event) {
 		if($this->logging) {
-			$this->systemLogger->log('Publish event ' . get_class($event), LOG_DEBUG);
+			$this->systemLogger->log('Publish event ' . $this->reflectionService->getClassNameByObject($event), LOG_DEBUG);
 		}
-		$event = new \Ag\Event\Domain\Model\StoredEvent($event);
+		$event = new StoredEvent($event);
 		$this->storedEventRepository->add($event);
 		$this->events[] = $event;
 	}
 
 	/**
-	 * @param \Doctrine\ORM\Event\PostFlushEventArgs $eventArgs
+	 * @param PostFlushEventArgs $eventArgs
 	 * @return void
 	 */
-	public function postFlush(\Doctrine\ORM\Event\PostFlushEventArgs $eventArgs) {
+	public function postFlush(PostFlushEventArgs $eventArgs) {
 		$events = $this->events;
 		$this->events = array();
 
 		foreach ($events as $event) {
-			foreach ($this->getAsyncEventHandlers() as $eventHandler) {
-				$this->_asyncPublish($event, $eventHandler);
+			foreach ($this->eventHandlersConfiguration['async'] as $eventHandlerClassName => $enabled) {
+				if ($enabled !== FALSE) {
+					$this->_asyncPublish($event, $eventHandlerClassName);
+				}
 			}
 
-			foreach ($this->getSyncEventHandlers() as $eventHandler) {
-				$this->_syncPublish($event, $eventHandler);
+			foreach ($this->eventHandlersConfiguration['sync'] as $eventHandlerClassName => $enabled) {
+				if ($enabled !== FALSE) {
+					$this->_syncPublish($event, $eventHandlerClassName);
+				}
 			}
 		}
 	}
 
 	/**
-	 * @param \Ag\Event\Domain\Model\StoredEvent $event
-	 * @param string $eventHandler
+	 * @param DomainEvent $event
+	 * @param $eventHandlerClassName
 	 */
-	public function _syncPublish($event, $eventHandler) {
-		if($this->logging) {
-			$this->systemLogger->log('Syncronously publishing event #' . $event->getEventId() . ' to ' . $eventHandler, LOG_DEBUG);
-		}
+	public function handleDomainEventByEventHandler(DomainEvent $event, $eventHandlerClassName) {
+		$eventHandlerInstance = $this->objectManager->get($eventHandlerClassName);
 
-		$eventHandlerInstance = $this->objectManager->get($eventHandler);
-
-		if(!$eventHandlerInstance instanceof \Ag\Event\EventHandler\EventHandler) {
-			$this->systemLogger->log('Event handler ' . $eventHandler . ' does not implement the event handler interface.', LOG_CRIT);
+		if (!$eventHandlerInstance instanceof EventHandler) {
+			$this->systemLogger->log(sprintf('Event handler "%s" does not implement the event handler interface.', $eventHandlerClassName), LOG_CRIT, array(
+				'event' => serialize($event)
+			));
 			return;
 		}
 
 		try {
-			$eventHandlerInstance->handle($event->getEvent());
-		} catch(\Exception $e) {
-			$this->systemLogger->log('Event #' . $event->getEventId() . 'could not be handled.', LOG_CRIT, array(
-				'event'=>serialize($event->getEvent()),
-				'exception'=>$e->getMessage(),
-				'trace'=>$e->getTrace()
+			$eventHandlerInstance->handle($event);
+		} catch (\Exception $caughtException) {
+			$wrappedException = new EventHandlingException('Event could not be handled.', 1403853171, $caughtException);
+			$this->systemLogger->logException($wrappedException, array(
+				'event' => serialize($event)
 			));
 		}
 	}
 
 	/**
-	 * @param \Ag\Event\Domain\Model\StoredEvent $event
+	 * @param StoredEvent $event
+	 * @param string $eventHandlerClassName
+	 */
+	protected function _syncPublish(StoredEvent $event, $eventHandlerClassName) {
+		if($this->logging) {
+			$this->systemLogger->log(sprintf('Synchronously publishing event #%s to "%s"', $event->getEventId(), $eventHandlerClassName), LOG_DEBUG);
+		}
+
+		$this->handleDomainEventByEventHandler($event->getEvent(), $eventHandlerClassName);
+	}
+
+	/**
+	 * @param StoredEvent $event
 	 * @param string $key
 	 */
 	protected function _asyncPublish($event, $key) {
 		$key = str_replace('\\', '_', $key);
 
-		$pheanstalk = new \Pheanstalk_Pheanstalk('127.0.0.1');
-		$pheanstalk->useTube($key)->put(serialize($event), \Pheanstalk_PheanstalkInterface::DEFAULT_PRIORITY, 1);
+		$this->pheanstalk->useTube($key)->put(serialize($event), PheanstalkInterface::DEFAULT_PRIORITY, 1);
 
 		if($this->logging) {
-			$this->systemLogger->log('Asyncronously published event #' . $event->getEventId() . ' to tube ' . $key, LOG_INFO);
-		}
-	}
-
-	/**
-	 * @return array
-	 */
-	protected function getSyncEventHandlers() {
-		$eventHandlers = $this->getEventHandlers();
-		if (array_key_exists('sync', $eventHandlers) && is_array($eventHandlers['sync'])) {
-			return $eventHandlers['sync'];
-		} else {
-			return array();
-		}
-	}
-
-	/**
-	 * @return array
-	 */
-	protected function getAsyncEventHandlers() {
-		$eventHandlers = $this->getEventHandlers();
-		if (array_key_exists('async', $eventHandlers) && is_array($eventHandlers['async'])) {
-			return $eventHandlers['async'];
-		} else {
-			return array();
-		}
-	}
-
-	/**
-	 * @return array
-	 */
-	protected function getEventHandlers() {
-		if (array_key_exists('eventHandlers', $this->settings) && is_array($this->settings['eventHandlers'])) {
-			return $this->settings['eventHandlers'];
-		} else {
-			return array();
+			$this->systemLogger->log(sprintf('Asynchronously published event #%s to tube "%s"', $event->getEventId(), $key), LOG_INFO);
 		}
 	}
 }
-
-?>

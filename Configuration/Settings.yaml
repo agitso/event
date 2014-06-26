@@ -1,5 +1,23 @@
+Ag:
+  Event:
+    beanstalkd:
+      host: '127.0.0.1'
+      port: '%Pheanstalk\PheanstalkInterface::DEFAULT_PORT%'
+      timeout: NULL
+
+    eventHandlers:
+      sync: []
+      async: []
+
 TYPO3:
   Flow:
     object:
       excludeClasses:
         'pda.pheanstalk' : ['.*']
+
+    persistence:
+      doctrine:
+        eventListeners:
+          'Ag.Event':
+            events: ['postFlush']
+            listener: 'Ag\Event\Service\EventService'

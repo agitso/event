@@ -1,7 +1,11 @@
 <?php
 namespace Ag\Event\EventHandler;
 
+use Ag\Event\Domain\Model\DomainEvent;
 use TYPO3\Flow\Annotations as Flow;
+use TYPO3\Flow\Log\SystemLoggerInterface;
+use TYPO3\Flow\Object\ObjectManagerInterface;
+use TYPO3\Flow\Reflection\ReflectionService;
 
 /**
  * @Flow\Scope("singleton")
@@ -9,47 +13,50 @@ use TYPO3\Flow\Annotations as Flow;
 abstract class ConventionBasedEventHandler implements EventHandler {
 
 	/**
-	 * @var \TYPO3\Flow\Log\SystemLoggerInterface
 	 * @Flow\Inject
+	 * @var SystemLoggerInterface
 	 */
 	protected $systemLogger;
 
 	/**
-	 * @var \TYPO3\Flow\Object\ObjectManagerInterface
 	 * @Flow\Inject
+	 * @var ObjectManagerInterface
 	 */
 	protected $objectManager;
 
 	/**
-	 * @param \Ag\Event\Domain\Model\DomainEvent $event
+	 * @Flow\Inject
+	 * @var ReflectionService
+	 */
+	protected $reflectionService;
+
+	/**
+	 * @param DomainEvent $event
 	 * @return void
 	 */
-	public function handle(\Ag\Event\Domain\Model\DomainEvent $event) {
+	public function handle(DomainEvent $event) {
 
-		$namespaceparts = explode('\\', get_class($event));
+		$namespaceParts = explode('\\', get_class($event));
+		$eventName = array_pop($namespaceParts);
 
-		$eventName = array_pop($namespaceparts);
-
-		if(array_pop($namespaceparts) !== 'Event' || array_pop($namespaceparts) !== 'Domain' ) {
-			$this->systemLogger->log('Event "'.get_class($event).'" did not follow the convention.', LOG_WARNING);
+		if(array_pop($namespaceParts) !== 'Event' || array_pop($namespaceParts) !== 'Domain' ) {
+			$this->systemLogger->log(sprintf('Event "%s" did not follow the convention.', $this->reflectionService->getClassNameByObject($event)), LOG_WARNING);
 			return;
 		}
 
 		$eventHandlerParts = explode('\\', get_called_class());
-
 		array_pop($eventHandlerParts);
 
-		$eventHandlerParts = array_merge($eventHandlerParts, $namespaceparts, array($eventName.'Handler'));
+		$eventHandlerParts = array_merge($eventHandlerParts, $namespaceParts, array($eventName.'Handler'));
+		$eventHandlerClassName = '\\'.implode('\\', $eventHandlerParts);
 
-		$eventHandlerClass = '\\'.implode('\\', $eventHandlerParts);
-
-		if(!class_exists($eventHandlerClass)) {
+		if(!class_exists($eventHandlerClassName)) {
 			return;
 		}
 
-		$eventHandler = $this->objectManager->get($eventHandlerClass);
+		$eventHandler = $this->objectManager->get($eventHandlerClassName);
 		if(!method_exists($eventHandler, 'handle')) {
-			$this->systemLogger->log('EventHandler ' . $eventHandlerClass .' did not have a handle() method', LOG_WARNING);
+			$this->systemLogger->log(sprintf('EventHandler "%s" did not have a handle() method.', $eventHandlerClassName), LOG_WARNING);
 			return;
 		}
 
@@ -57,4 +64,3 @@ abstract class ConventionBasedEventHandler implements EventHandler {
 	}
 
 }
-?>

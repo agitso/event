@@ -1,8 +1,15 @@
 <?php
 namespace Ag\Event\Tests\Functional\EventService;
 
-class StoreAndPublishTest extends \TYPO3\Flow\Tests\FunctionalTestCase {
+use TYPO3\Flow\Tests\FunctionalTestCase;
 
+/**
+ */
+class StoreAndPublishTest extends FunctionalTestCase {
+
+	/**
+	 * @var boolean
+	 */
 	static protected $testablePersistenceEnabled = TRUE;
 
 	/**
@@ -25,7 +32,8 @@ class StoreAndPublishTest extends \TYPO3\Flow\Tests\FunctionalTestCase {
 	 */
 	protected $stubEventHandler;
 
-
+	/**
+	 */
 	public function setUp() {
 		parent::setUp();
 
@@ -62,5 +70,5 @@ class StoreAndPublishTest extends \TYPO3\Flow\Tests\FunctionalTestCase {
 		$event = $this->storedEventRepository->findByIdentifier('2');
 		$this->assertEquals('Hello world #2', $event->getEvent()->getMessage());
 	}
+
 }
-?>

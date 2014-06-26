@@ -1,13 +1,16 @@
 <?php
 namespace Ag\Event\EventHandler;
 
+use Ag\Event\Domain\Model\DomainEvent;
+
+/**
+ */
 interface EventHandler {
 
 	/**
-	 * @param \Ag\Event\Domain\Model\DomainEvent $event
+	 * @param DomainEvent $event
 	 * @return void
 	 */
-	public function handle(\Ag\Event\Domain\Model\DomainEvent $event);
+	public function handle(DomainEvent $event);
 
 }
-?>

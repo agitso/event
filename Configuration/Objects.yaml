@@ -1,0 +1,8 @@
+'Pheanstalk\Pheanstalk':
+  arguments:
+    1:
+      setting: 'Ag.Event.beanstalkd.host'
+    2:
+      setting: 'Ag.Event.beanstalkd.port'
+    3:
+      setting: 'Ag.Event.beanstalkd.timeout'
