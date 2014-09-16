@@ -93,7 +93,6 @@ class EventService {
 	public function postFlush(PostFlushEventArgs $eventArgs) {
 		$events = $this->events;
 		$this->events = array();
-
 		foreach ($events as $event) {
 			foreach ($this->eventHandlersConfiguration['async'] as $eventHandlerClassName => $enabled) {
 				if ($enabled !== FALSE) {
@@ -146,16 +145,16 @@ class EventService {
 	}
 
 	/**
-	 * @param StoredEvent $event
+	 * @param StoredEvent $storedEvent
 	 * @param string $key
 	 */
-	protected function _asyncPublish($event, $key) {
+	protected function _asyncPublish(StoredEvent $storedEvent, $key) {
 		$key = str_replace('\\', '_', $key);
 
-		$this->pheanstalk->useTube($key)->put(serialize($event), PheanstalkInterface::DEFAULT_PRIORITY, 1);
+		$this->pheanstalk->useTube($key)->put(serialize($storedEvent), PheanstalkInterface::DEFAULT_PRIORITY, 1);
 
 		if($this->logging) {
-			$this->systemLogger->log(sprintf('Asynchronously published event #%s to tube "%s"', $event->getEventId(), $key), LOG_INFO);
+			$this->systemLogger->log(sprintf('Asynchronously published event #%s to tube "%s"', $storedEvent->getEventId(), $key), LOG_INFO);
 		}
 	}
 }
