@@ -1,11 +1,9 @@
 {
     "name": "ag/event",
     "type": "typo3-flow-package",
-    "description": "",
-    "version": "",
     "require": {
-		"typo3/flow": "2.2.*",
-		"pda/pheanstalk": "3.0.*"
+        "typo3/flow": "~2.2",
+        "pda/pheanstalk": "3.0.*"
     },
     "autoload": {
         "psr-0": {
