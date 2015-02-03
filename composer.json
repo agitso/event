@@ -1,6 +1,26 @@
 {
     "name": "ag/event",
     "type": "typo3-flow-package",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Agitso",
+            "email": "hmr@agitso.com",
+            "homepage": "http://agitso.com",
+            "role": "Developer"
+        },
+        {
+            "name": "Adrian Föder",
+            "email": "adrian@foeder.de",
+            "homepage": "http://foeder.de",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/agitso/event/issues",
+        "wiki": "https://github.com/agitso/event/wiki",
+        "irc": "irc://irc.freenode.org/typo3-flow"
+    },
     "require": {
         "typo3/flow": "~2.2",
         "pda/pheanstalk": "3.0.*"
