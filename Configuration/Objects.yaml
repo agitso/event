@@ -1,3 +1,10 @@
+'Ag\Event\Command\EventCommandController':
+  properties:
+    'subProcessCommandSettings':
+      # according to the doc comment of \TYPO3\Flow\Core\Booting\Scripts::executeCommand,
+      # the settings which are passed there must be the (complete) TYPO3.FLow settings.
+      setting: 'TYPO3.Flow'
+
 'Pheanstalk\Pheanstalk':
   arguments:
     1:
