@@ -1,5 +1,6 @@
 {
     "name": "ag/event",
+    "description": "A package that strives to best possible support the TYPO3 Flow PHP Framework with Domain Events as described in »Implementing Domain-Driven Design« by Vaughn Vernon.",
     "type": "typo3-flow-package",
     "license": "MIT",
     "authors": [
