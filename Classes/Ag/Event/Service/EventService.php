@@ -2,8 +2,8 @@
 namespace Ag\Event\Service;
 
 use Ag\Event\Domain\Model\DomainEvent;
-use Ag\Event\Domain\Model\StoredEvent;
-use Ag\Event\Domain\Repository\StoredEventRepository;
+use Ag\Event\Store\PersistenceStore\StoredEvent;
+use Ag\Event\Store\PersistenceStore\StoredEventRepository;
 use Ag\Event\EventHandler\EventHandler;
 use Ag\Event\Exception\EventHandlingException;
 use Doctrine\ORM\Event\PostFlushEventArgs;
@@ -28,7 +28,7 @@ class EventService {
 
 	/**
 	 * @Flow\Inject
-	 * @var StoredEventRepository
+	 * @var \Ag\Event\Store\PersistenceStore\StoredEventRepository
 	 */
 	protected $storedEventRepository;
 

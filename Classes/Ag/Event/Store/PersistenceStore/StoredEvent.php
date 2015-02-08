@@ -1,6 +1,7 @@
 <?php
-namespace Ag\Event\Domain\Model;
+namespace Ag\Event\Store\PersistenceStore;
 
+use Ag\Event\Domain\Model\DomainEvent;
 use TYPO3\Flow\Annotations as Flow;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -10,17 +11,32 @@ use Doctrine\ORM\Mapping as ORM;
 class StoredEvent {
 
 	/**
+	 * This is mainly for sorting. Events are primarily identified by their eventId.
+	 *
 	 * @var string
 	 * @ORM\Id
 	 * @ORM\GeneratedValue
 	 * @ORM\Column(type="bigint", options={"unsigned"=true})
 	 */
+	protected $eventStoreId;
+
+	/**
+	 * @var string
+	 * @ORM\Column(unique=true)
+	 */
 	protected $eventId;
+
+	/**
+	 * Event class name
+	 *
+	 * @var string
+	 */
+	protected $eventType;
 
 	/**
 	 * @var \DateTime
 	 */
-	protected $occuredOn;
+	protected $occurredOn;
 
 	/**
 	 * @var string
@@ -32,8 +48,17 @@ class StoredEvent {
 	 * @param DomainEvent $event
 	 */
 	public function __construct(DomainEvent $event) {
-		$this->occuredOn = clone $event->occuredOn;
+		$this->eventId = $event->eventId;
+		$this->eventType = get_class($event);
 		$this->event = serialize($event);
+		$this->occurredOn = clone $event->occurredOn;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getEventStoreId() {
+		return $this->eventStoreId;
 	}
 
 	/**

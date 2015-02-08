@@ -23,7 +23,7 @@ class StoreAndPublishTest extends FunctionalTestCase {
 	protected $dispatcher;
 
 	/**
-	 * @var \Ag\Event\Domain\Repository\StoredEventRepository
+	 * @var \Ag\Event\Store\PersistenceStore\StoredEventRepository
 	 */
 	protected $storedEventRepository;
 

@@ -13,3 +13,16 @@
       setting: 'Ag.Event.beanstalkd.port'
     3:
       setting: 'Ag.Event.beanstalkd.timeout'
+
+Ag\Event\Logging\EventLoggerInterface:
+  scope: singleton
+  factoryObjectName: TYPO3\Flow\Log\LoggerFactory
+  arguments:
+    1:
+      value: 'Event'
+    2:
+      value: 'TYPO3\Flow\Log\Logger'
+    3:
+      setting: TYPO3.Flow.log.securityLogger.backend
+    4:
+      setting: TYPO3.Flow.log.securityLogger.backendOptions

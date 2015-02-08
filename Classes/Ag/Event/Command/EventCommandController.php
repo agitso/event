@@ -1,8 +1,8 @@
 <?php
 namespace Ag\Event\Command;
 
-use Ag\Event\Domain\Model\StoredEvent;
-use Ag\Event\Domain\Repository\StoredEventRepository;
+use Ag\Event\Store\PersistenceStore\StoredEvent;
+use Ag\Event\Store\PersistenceStore\StoredEventRepository;
 use Ag\Event\Exception\StoredEventNotFoundException;
 use Ag\Event\Service\EventService;
 use Pheanstalk\Job;
@@ -41,7 +41,7 @@ class EventCommandController extends CommandController {
 
 	/**
 	 * @Flow\Inject
-	 * @var StoredEventRepository
+	 * @var \Ag\Event\Store\PersistenceStore\StoredEventRepository
 	 */
 	protected $storedEventRepository;
 
