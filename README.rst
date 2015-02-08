@@ -10,7 +10,7 @@ Because using domain events to communicate information between aggregates, modul
 
 How?
 ====
-See Ag.BlogExample for an example on how to integrate.
+See `Ag.Shop <https://github.com/agitso/shop>`_ for an example on how to integrate.
 
 ****************
 Event processing
