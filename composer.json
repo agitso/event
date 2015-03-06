@@ -23,7 +23,7 @@
         "irc": "irc://irc.freenode.org/typo3-flow"
     },
     "require": {
-        "typo3/flow": "~2.2",
+        "typo3/flow": ">=2.2",
         "pda/pheanstalk": "3.0.*"
     },
     "autoload": {
