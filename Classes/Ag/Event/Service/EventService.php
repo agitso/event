@@ -82,6 +82,7 @@ class EventService {
 			$this->systemLogger->log('Publish event ' . $this->reflectionService->getClassNameByObject($event), LOG_DEBUG);
 		}
 		$event = new StoredEvent($event);
+		$this->persistenceManager->whitelistObject($event);
 		$this->storedEventRepository->add($event);
 		$this->events[] = $event;
 	}
